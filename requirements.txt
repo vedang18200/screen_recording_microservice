@@ -1,0 +1,9 @@
+
+Django==5.2.7
+djangorestframework==3.16.1
+boto3
+python-dotenv
+django-cors-headers
+dj-database-url
+gunicorn
+

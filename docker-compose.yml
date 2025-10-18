@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  django:
+    build: .
+    container_name: screenrec_microservice
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    command: ["gunicorn", "screenrec_backend.wsgi:application", "--bind", "0.0.0.0:8000"]
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: screenrec
+      POSTGRES_USER: screenrec
+      POSTGRES_PASSWORD: screenrec
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+volumes:
+  postgres_data:
