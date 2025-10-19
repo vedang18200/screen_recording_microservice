@@ -1,4 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import Uppy from '@uppy/core';
+import { Dashboard } from '@uppy/react';
+import AwsS3Multipart from '@uppy/aws-s3-multipart';
+import '@uppy/core/style.css';
+import '@uppy/dashboard/style.css';
 import { Camera, Video, VideoOff, Upload, Clock, AlertCircle, CheckCircle, XCircle, Settings } from 'lucide-react';
 
 const ExamPortal = () => {
@@ -27,9 +32,18 @@ const ExamPortal = () => {
   const timerIntervalRef = useRef(null);
   const recordingIntervalRef = useRef(null);
 
-  // Upload state
-  const [uploadSession, setUploadSession] = useState(null);
-  const [uploadedParts, setUploadedParts] = useState([]);
+  // Uppy instance for resumable upload
+  const [uppy] = useState(() =>
+    new Uppy({
+      autoProceed: false,
+      restrictions: { maxNumberOfFiles: 1 }
+    })
+      .use(AwsS3Multipart, {
+        companionUrl: apiBaseUrl,
+        limit: 2,
+        chunkSize: 2 * 1024 * 1024 // 2 MB
+      })
+  );
 
   // Format time helper
   const formatTime = (seconds) => {
@@ -127,7 +141,7 @@ const ExamPortal = () => {
       };
 
       mediaRecorder.onstop = () => {
-        handleUpload();
+        // Uppy handles upload now. No need to call handleUpload.
       };
 
       mediaRecorder.start(1000);
@@ -150,41 +164,7 @@ const ExamPortal = () => {
     setIsRecording(false);
   };
 
-  // Multipart upload implementation
-  const handleUpload = async () => {
-    if (recordedChunksRef.current.length === 0) {
-      setUploadStatus('No recording to upload');
-      return;
-    }
-
-    const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-    const filename = `exam_recording_${Date.now()}.webm`;
-
-    setUploadStatus('Uploading...');
-    setUploadProgress(0);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', blob, filename);
-      formData.append('user_id', 'exam_user_' + Date.now());
-
-      const response = await fetch(`${apiBaseUrl}/api/upload/backend/`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload video');
-      }
-
-      const result = await response.json();
-      setUploadStatus('Upload complete!');
-      alert('Recording uploaded successfully!\nFile URL: ' + result.file_url);
-    } catch (err) {
-      setUploadStatus('Upload failed: ' + err.message);
-      console.error('Upload error:', err);
-    }
-  };
+  // Remove old upload logic. Uppy handles upload now.
 
   // Start exam
   const handleStartExam = () => {
@@ -368,42 +348,15 @@ const ExamPortal = () => {
               </div>
             </div>
 
-            {/* Upload Status */}
+            {/* Uppy Dashboard for resumable upload */}
             <div className="bg-white rounded-lg shadow-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Upload Status</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  {uploadStatus.includes('complete') ? (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                  ) : uploadStatus.includes('failed') ? (
-                    <XCircle className="w-5 h-5 text-red-600" />
-                  ) : (
-                    <Upload className="w-5 h-5 text-blue-600" />
-                  )}
-                  <span className="text-sm text-gray-700">{uploadStatus || 'Ready'}</span>
-                </div>
-
-                {uploadProgress > 0 && (
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Progress</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {uploadedParts.length > 0 && (
-                  <div className="text-xs text-gray-600">
-                    Uploaded {uploadedParts.length} part(s)
-                  </div>
-                )}
-              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Upload (Resumable)</h3>
+              <Dashboard
+                uppy={uppy}
+                width={400}
+                height={300}
+                proudlyDisplayPoweredByUppy={false}
+              />
             </div>
 
             {/* Instructions */}
