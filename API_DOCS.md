@@ -37,7 +37,8 @@ Set the following variables in your `.env` file or Docker environment:
 - **Body:** `multipart/form-data` with file and metadata fields.
 - **Response:** `{ "video_url": "<url>" }`
 
-### 2. `POST /api/upload/session/`
+
+### 2. `POST /api/multipart/create/`
 - **Description:** Create a new multipart upload session.
 - **Body:**
   ```json
@@ -62,17 +63,20 @@ Set the following variables in your `.env` file or Docker environment:
   }
   ```
 
-### 3. `POST /api/upload/session/{upload_id}/part-url/`
+
+### 3. `POST /api/multipart/{upload_id}/presign/`
 - **Description:** Get a presigned URL for uploading a part.
 - **Body:** `{ "part_number": 1 }`
 - **Response:** `{ "presigned_url": "..." }`
 
-### 4. `POST /api/upload/session/{upload_id}/register-part/`
+
+### 4. `POST /api/multipart/{upload_id}/register-part/`
 - **Description:** Register a part's ETag after uploading to S3.
 - **Body:** `{ "part_number": 1, "etag": "..." }`
 - **Response:** `{ "status": "ok" }`
 
-### 5. `POST /api/upload/session/{upload_id}/complete/`
+
+### 5. `POST /api/multipart/{upload_id}/complete/`
 - **Description:** Complete the multipart upload.
 - **Body:**
   ```json
@@ -85,11 +89,13 @@ Set the following variables in your `.env` file or Docker environment:
   ```
 - **Response:** `{ "file_url": "..." }`
 
-### 6. `GET /api/upload/session/{upload_id}/status/`
+
+### 6. `GET /api/multipart/{upload_id}/status/`
 - **Description:** Get the status of an upload session.
 - **Response:** Upload session details.
 
-### 7. `POST /api/upload/session/{upload_id}/abort/`
+
+### 7. `POST /api/multipart/{upload_id}/abort/`
 - **Description:** Abort a multipart upload session.
 - **Response:** `{ "status": "aborted" }`
 
