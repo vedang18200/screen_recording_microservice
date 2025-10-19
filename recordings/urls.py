@@ -7,11 +7,14 @@ from .views import (
     CompleteUploadView,
     UploadStatusView,
     AbortUploadView,
+    BackendUploadView,
 )
 
 urlpatterns = [
     # backward compatible simple upload
     path('upload/', SimpleUploadView.as_view(), name='upload-recording'),
+    # backend upload endpoint
+    path('upload/backend/', BackendUploadView.as_view(), name='backend-upload'),
 
     # multipart/session endpoints
     path('multipart/create/', CreateUploadSessionView.as_view(), name='create-upload-session'),

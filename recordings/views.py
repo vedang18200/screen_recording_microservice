@@ -1,3 +1,4 @@
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,6 +15,36 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 import uuid
+
+# Backend upload endpoint: receives file, uploads to S3, returns S3 URL
+class BackendUploadView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        user_id = request.data.get('user_id', '')
+        if not file_obj:
+            return Response({'detail': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        s3 = _s3_client()
+        key = f"recordings/{uuid.uuid4().hex}/{file_obj.name}"
+        try:
+            s3.upload_fileobj(
+                file_obj,
+                settings.S3_BUCKET_NAME,
+                key,
+                ExtraArgs={
+                    'ContentType': file_obj.content_type or 'application/octet-stream'
+                }
+            )
+        except ClientError as e:
+            return Response({'detail': 'Failed to upload to S3', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Optionally create a ScreenRecording DB record
+        ScreenRecording.objects.create(user_id=user_id, video=key)
+
+        file_url = f"https://{settings.S3_BUCKET_NAME}.s3.amazonaws.com/{key}"
+        return Response({'file_url': file_url}, status=status.HTTP_201_CREATED)
 
 
 def _s3_client():

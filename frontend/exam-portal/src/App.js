@@ -160,90 +160,26 @@ const ExamPortal = () => {
     const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
     const filename = `exam_recording_${Date.now()}.webm`;
 
-    setUploadStatus('Preparing upload...');
+    setUploadStatus('Uploading...');
     setUploadProgress(0);
 
     try {
-      // Create upload session
-  const sessionResponse = await fetch(`${apiBaseUrl}/api/multipart/create/`, {
+      const formData = new FormData();
+      formData.append('file', blob, filename);
+      formData.append('user_id', 'exam_user_' + Date.now());
+
+      const response = await fetch(`${apiBaseUrl}/api/upload/backend/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: filename,
-          content_type: 'video/webm',
-          size: blob.size,
-          user_id: 'exam_user_' + Date.now()
-        })
+        body: formData
       });
 
-      if (!sessionResponse.ok) {
-        throw new Error('Failed to create upload session');
+      if (!response.ok) {
+        throw new Error('Failed to upload video');
       }
 
-      const session = await sessionResponse.json();
-      setUploadSession(session);
-      setUploadStatus('Uploading...');
-
-      // Split into chunks (5MB per part)
-      const chunkSize = 5 * 1024 * 1024;
-      const totalParts = Math.ceil(blob.size / chunkSize);
-      const parts = [];
-
-      for (let partNum = 1; partNum <= totalParts; partNum++) {
-        const start = (partNum - 1) * chunkSize;
-        const end = Math.min(start + chunkSize, blob.size);
-        const chunk = blob.slice(start, end);
-
-        // Get presigned URL
-        const urlResponse = await fetch(
-          `${apiBaseUrl}/api/multipart/${session.id}/presign/`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ part_number: partNum })
-          }
-        );
-
-        const { presigned_url } = await urlResponse.json();
-
-        // Upload part to S3
-        const uploadResponse = await fetch(presigned_url, {
-          method: 'PUT',
-          body: chunk,
-          headers: { 'Content-Type': 'video/webm' }
-        });
-
-        const etag = uploadResponse.headers.get('ETag').replace(/"/g, '');
-
-        // Register part
-        await fetch(
-          `${apiBaseUrl}/api/multipart/${session.id}/register-part/`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ part_number: partNum, etag: etag })
-          }
-        );
-
-        parts.push({ part_number: partNum, etag: etag });
-        setUploadProgress(Math.round((partNum / totalParts) * 100));
-        setUploadedParts(parts);
-      }
-
-      // Complete upload
-      const completeResponse = await fetch(
-        `${apiBaseUrl}/api/multipart/${session.id}/complete/`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parts: parts })
-        }
-      );
-
-      const result = await completeResponse.json();
+      const result = await response.json();
       setUploadStatus('Upload complete!');
       alert('Recording uploaded successfully!\nFile URL: ' + result.file_url);
-
     } catch (err) {
       setUploadStatus('Upload failed: ' + err.message);
       console.error('Upload error:', err);
